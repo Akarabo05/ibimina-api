@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ibimina
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+
+  mongo:
+    image: mongo:7
+    ports: ["27017:27017"]
+    volumes: [mongodata:/data/db]
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports: ["5672:5672", "15672:15672"]
+
+  mailpit:
+    image: axllent/mailpit
+    ports: ["1025:1025", "8025:8025"]
+
+volumes:
+  pgdata:
+  mongodata:

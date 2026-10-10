@@ -1,0 +1,56 @@
+server:
+  port: 8085
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: ibimina-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/ibimina}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:1234}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc.batch_size: 20
+        order_inserts: true
+  mongodb:
+    uri: ${MONGO_URI:mongodb://localhost:27017/ibimina-api}
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/ibimina-api}
+      auto-index-creation: true
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:guest}
+    password: ${RABBIT_PASSWORD:guest}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:not-configured}
+            client-secret: ${GOOGLE_CLIENT_SECRET:not-configured}
+            scope:
+              - openid
+              - profile
+              - email
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:Ibimina app is gonna be great in the near future definitely}   # at least 32 characters
+    expiration-minutes: 120
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:Admin@12345}
+  seed-demo: ${SEED_DEMO:true}
+  notification:
+    from: no-reply@ibimina.rw
