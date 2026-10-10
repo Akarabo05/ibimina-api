@@ -1,44 +1,59 @@
 package rw.ac.auca.Ibimina_api.controller;
 
-import rw.ac.auca.Ibimina_api.entity.Contribution;
+import rw.ac.auca.Ibimina_api.dto.ContributionDtos;
+import rw.ac.auca.Ibimina_api.dto.PageResponse;
+import rw.ac.auca.Ibimina_api.security.CurrentUser;
 import rw.ac.auca.Ibimina_api.service.ContributionService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
+/**
+ * Separation of duties: the treasurer RECORDS, only an admin can REVERSE, nobody can edit or delete.
+ * There are intentionally no PUT/DELETE endpoints.
+ */
 @RestController
-@RequestMapping("/api/contributions")
+@RequestMapping("/api")
 public class ContributionController {
 
-    @Autowired
-    private ContributionService contributionService;
+    private final ContributionService contributions;
 
-    @PostMapping
-    public ResponseEntity<Contribution> create(@Valid @RequestBody Contribution contribution) {
-        return ResponseEntity.ok(contributionService.create(contribution));
+    public ContributionController(ContributionService contributions) {
+        this.contributions = contributions;
     }
 
-    @GetMapping
-    public ResponseEntity<List<Contribution>> getAll() {
-        return ResponseEntity.ok(contributionService.findAll());
+    @PostMapping("/contributions")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN','TREASURER')")
+    public ContributionDtos.Response record(@Valid @RequestBody ContributionDtos.Request request,
+                                            @AuthenticationPrincipal Jwt jwt) {
+        return contributions.record(request, jwt.getSubject());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Contribution> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(contributionService.findById(id));
+    @PostMapping("/contributions/{id}/reverse")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ContributionDtos.Response reverse(@PathVariable Long id, @Valid @RequestBody ContributionDtos.ReverseRequest request,
+                                             @AuthenticationPrincipal Jwt jwt) {
+        return contributions.reverse(id, request.reason(), jwt.getSubject());
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Contribution> update(@PathVariable Long id, @Valid @RequestBody Contribution contribution) {
-        return ResponseEntity.ok(contributionService.update(id, contribution));
+    @GetMapping("/contributions")
+    @PreAuthorize("hasAnyRole('ADMIN','TREASURER')")
+    public PageResponse<ContributionDtos.Response> list(@RequestParam(required = false) Long memberId,
+                                                        @PageableDefault(size = 20, sort = "recordedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return contributions.list(memberId, pageable);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        contributionService.delete(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/me/contributions")
+    @PreAuthorize("hasRole('MEMBER')")
+    public PageResponse<ContributionDtos.Response> mine(@AuthenticationPrincipal Jwt jwt,
+                                                        @PageableDefault(size = 20, sort = "recordedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return contributions.list(CurrentUser.requireMemberId(jwt), pageable);
     }
 }

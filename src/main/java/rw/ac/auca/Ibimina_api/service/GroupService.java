@@ -1,56 +1,62 @@
 package rw.ac.auca.Ibimina_api.service;
 
+import rw.ac.auca.Ibimina_api.audit.AuditService;
+import rw.ac.auca.Ibimina_api.dto.GroupDtos;
 import rw.ac.auca.Ibimina_api.entity.Group;
+import rw.ac.auca.Ibimina_api.exception.ResourceNotFoundException;
 import rw.ac.auca.Ibimina_api.repository.GroupRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class GroupService {
 
-    @Autowired
-    private GroupRepository groupRepository;
+    private final GroupRepository groups;
+    private final AuditService audit;
 
-    public Group create(Group group) {
-        validate(group);
-        return groupRepository.save(group);
+    public GroupService(GroupRepository groups, AuditService audit) {
+        this.groups = groups;
+        this.audit = audit;
     }
 
-    public List<Group> findAll() {
-        return groupRepository.findAll();
-    }
-
-    public Group findById(Long id) {
-        return groupRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Group not found with id: " + id));
-    }
-
-    public Group update(Long id, Group updatedGroup) {
-        Group existing = findById(id);
-        validate(updatedGroup);
-        existing.setGroupName(updatedGroup.getGroupName());
-        existing.setMeetingFrequency(updatedGroup.getMeetingFrequency());
-        existing.setContributionAmount(updatedGroup.getContributionAmount());
-        return groupRepository.save(existing);
-    }
-
-    public void delete(Long id) {
-        Group existing = findById(id);
-        groupRepository.delete(existing);
-    }
-
-    // Business logic validation
-    private void validate(Group group) {
-        if (group.getContributionAmount() != null && group.getContributionAmount() <= 0) {
-            throw new IllegalArgumentException("Contribution amount must be greater than zero");
+    @Transactional
+    public GroupDtos.Response create(GroupDtos.Request r, String actor) {
+        String name = r.groupName().trim();
+        if (groups.existsByGroupNameIgnoreCase(name)) {
+            throw new IllegalArgumentException("A group named '" + name + "' already exists");
         }
-        if (group.getMeetingFrequency() != null) {
-            String freq = group.getMeetingFrequency().trim().toLowerCase();
-            if (!freq.equals("weekly") && !freq.equals("monthly")) {
-                throw new IllegalArgumentException("Meeting frequency must be 'weekly' or 'monthly'");
-            }
-        }
+        Group saved = groups.save(new Group(name, r.meetingFrequency(), r.contributionAmount()));
+        audit.log(actor, "CREATE_GROUP", "Group", String.valueOf(saved.getId()), "Created group " + name);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public GroupDtos.Response update(Long id, GroupDtos.Request r, String actor) {
+        Group g = find(id);
+        g.setGroupName(r.groupName().trim());
+        g.setMeetingFrequency(r.meetingFrequency());
+        g.setContributionAmount(r.contributionAmount());
+        audit.log(actor, "UPDATE_GROUP", "Group", String.valueOf(id), "Updated group " + g.getGroupName());
+        return toResponse(g);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GroupDtos.Response> list() {
+        return groups.findAll().stream().map(GroupService::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public GroupDtos.Response get(Long id) {
+        return toResponse(find(id));
+    }
+
+    public Group find(Long id) {
+        return groups.findById(id).orElseThrow(() -> new ResourceNotFoundException("Group " + id + " not found"));
+    }
+
+    static GroupDtos.Response toResponse(Group g) {
+        return new GroupDtos.Response(g.getId(), g.getGroupName(), g.getMeetingFrequency(), g.getContributionAmount());
     }
 }

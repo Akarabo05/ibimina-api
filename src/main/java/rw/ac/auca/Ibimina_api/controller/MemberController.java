@@ -1,44 +1,56 @@
 package rw.ac.auca.Ibimina_api.controller;
 
-import rw.ac.auca.Ibimina_api.entity.Member;
+import rw.ac.auca.Ibimina_api.dto.MemberDtos;
+import rw.ac.auca.Ibimina_api.dto.PageResponse;
 import rw.ac.auca.Ibimina_api.service.MemberService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/members")
+@PreAuthorize("hasAnyRole('ADMIN','TREASURER')")
 public class MemberController {
 
-    @Autowired
-    private MemberService memberService;
+    private final MemberService members;
+
+    public MemberController(MemberService members) {
+        this.members = members;
+    }
 
     @PostMapping
-    public ResponseEntity<Member> create(@Valid @RequestBody Member member) {
-        return ResponseEntity.ok(memberService.create(member));
-    }
-
-    @GetMapping
-    public ResponseEntity<List<Member>> getAll() {
-        return ResponseEntity.ok(memberService.findAll());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Member> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(memberService.findById(id));
+    @ResponseStatus(HttpStatus.CREATED)
+    public MemberDtos.Response create(@Valid @RequestBody MemberDtos.Request request, @AuthenticationPrincipal Jwt jwt) {
+        return members.create(request, jwt.getSubject());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Member> update(@PathVariable Long id, @Valid @RequestBody Member member) {
-        return ResponseEntity.ok(memberService.update(id, member));
+    public MemberDtos.Response update(@PathVariable Long id, @Valid @RequestBody MemberDtos.Request request,
+                                      @AuthenticationPrincipal Jwt jwt) {
+        return members.update(id, request, jwt.getSubject());
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        memberService.delete(id);
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}/active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public MemberDtos.Response setActive(@PathVariable Long id, @RequestParam boolean value,
+                                         @AuthenticationPrincipal Jwt jwt) {
+        return members.setActive(id, value, jwt.getSubject());
+    }
+
+    @GetMapping
+    public PageResponse<MemberDtos.Response> list(@RequestParam(required = false) Long groupId,
+                                                  @PageableDefault(size = 20, sort = "fullName", direction = Sort.Direction.ASC) Pageable pageable) {
+        return members.list(groupId, pageable);
+    }
+
+    @GetMapping("/{id}")
+    public MemberDtos.Response get(@PathVariable Long id) {
+        return members.get(id);
     }
 }
