@@ -26,9 +26,9 @@ services:
     depends_on: [postgres, mongo, rabbitmq]
     restart: on-failure
     environment:
-      DB_URL: jdbc:postgresql://postgres:5433/ibimina
+      DB_URL: jdbc:postgresql://postgres:5432/ibimina
       DB_USER: postgres
-      DB_PASSWORD: 1234
+      DB_PASSWORD: postgres
       MONGO_URI: mongodb://mongo:27017/ibimina
       RABBIT_HOST: rabbitmq
       MAIL_HOST: mailpit
