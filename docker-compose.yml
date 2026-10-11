@@ -21,6 +21,19 @@ services:
     image: axllent/mailpit
     ports: ["1025:1025", "8025:8025"]
 
+  api:
+    build: .
+    depends_on: [postgres, mongo, rabbitmq]
+    restart: on-failure
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5433/ibimina
+      DB_USER: postgres
+      DB_PASSWORD: 1234
+      MONGO_URI: mongodb://mongo:27017/ibimina
+      RABBIT_HOST: rabbitmq
+      MAIL_HOST: mailpit
+    ports: ["8085:8085"]
+
 volumes:
   pgdata:
   mongodata:
